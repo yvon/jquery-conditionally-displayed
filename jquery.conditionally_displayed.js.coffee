@@ -4,6 +4,7 @@
       @associatedNode = $("[name='#{@jQueryNode.data 'display-if'}']")
       @expectedValues = @jQueryNode.data 'has-value'
       @bindEvents()
+      @updateDisplay()
 
     bindEvents: ->
       @associatedNode.change (event) => @updateDisplay()
