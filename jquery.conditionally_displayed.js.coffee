@@ -1,12 +1,13 @@
 # Display or hide a jQuery DOM element, depending on a form element value
 # Dependences: jQuery ; Underscore.js
-
+#
 # Sample:
 # -------
 # <select name="selector">
 #   <option value="0">hide</option>
-#   <optoon valie="1">show</option>
+#   <option value="1">show</option>
 # </select>
+#
 # <div data-display-if="selector" data-has-value="[1]">lorem</div>
 #
 # <script type="text/javascript">
@@ -15,44 +16,57 @@
 
 (($) ->
   class ConditionallyDisplayed
-    constructor: (@jQueryNode) ->
-      # Saves the element on his initial state (replaced by empty content when hidden)
-      @nodeBackup = @jQueryNode
-      # The form element the display depends of
-      @associatedNode = $("[name='#{@jQueryNode.data 'display-if'}']")
+    constructor: (@el, @triggerChangeEvent = false) ->
+      # The form element this node depends of
+      @relyOn = $("[name='#{@el.data 'display-if'}']")
       # Values expected to show the element
-      @expectedValues = @jQueryNode.data 'has-value'
+      @expectedValues = @el.data 'has-value'
 
       @bindEvents()
       @updateDisplay()
 
     bindEvents: ->
-      @associatedNode.change (event) => @updateDisplay()
+      callback = (event) => @updateDisplay()
+      @relyOn.change(callback).click(callback)
 
     updateDisplay: ->
-      if @display() then @showNode() else @hideNode()
-
-    # Should we display the node ? => returns true or false
-    display: ->
-      _.include(@expectedValues, @valueOfAssociatedNode())
-
-    # Get the value of the form element we depend of
-    valueOfAssociatedNode: ->
-      if @associatedNode.attr('type') == 'radio'
-        @associatedNode.filter(':checked').val()
+      if _.include(@expectedValues, @valueOfAssociatedNode())
+        @el.show()
       else
-        @associatedNode.val()
+        @el.hide()
+      @el.parent().trigger('change') if @triggerChangeEvent == true
 
-    showNode: ->
-      @replaceNodeBy(@nodeBackup)
+    valueOfAssociatedNode: ->
+      if @relyOn.attr('type') == 'radio'
+        @relyOn.filter(':checked').val()
+      else
+        @relyOn.val()
 
-    hideNode: ->
-      @replaceNodeBy($())
 
-    replaceNodeBy: (content) ->
-      @jQueryNode = content.replaceAll(@jQueryNode)
+  $.fn.reattachable = ->
+    # Save initial position
+    parent       = this.parent()
+    nextSiblings = this.nextAll()
 
-  # jQuery plugin
+    this.attach = ->
+      if this.is(':hidden')
+        next = nextSiblings.filter(':visible').get(0)
+        if next then this.insertBefore(next) else this.appendTo(parent)
+    this.detach = ->
+      $.fn.detach.call(this)
+
+
   $.fn.conditionallyDisplayed = ->
-    this.each -> new ConditionallyDisplayed $(this)
+    this.each ->
+      el = $(this)
+      triggerChangeEvent = false
+
+      if this.tagName == 'OPTION'
+        triggerChangeEvent = true
+        el.reattachable()
+        el.hide = el.detach
+        el.show = el.attach
+
+      new ConditionallyDisplayed el, triggerChangeEvent
+
 )(jQuery)
